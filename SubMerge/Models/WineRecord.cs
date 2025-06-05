@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using SubMerge.Parsers;
 
 namespace SubMerge.Models;
 
@@ -9,7 +10,7 @@ public record struct WineRecord : IParsable<WineRecord>
         if (string.IsNullOrWhiteSpace(label))
             throw new ArgumentException("Label cannot be empty", nameof(label));
         if (productionYear <= 0)
-            throw new ArgumentException("Harvest year must be positive", nameof(productionYear));
+            throw new ArgumentException("Production year must be positive", nameof(productionYear));
 
         WineId = wineId;
         Label = label;
@@ -18,19 +19,17 @@ public record struct WineRecord : IParsable<WineRecord>
         CountryProductionId = countryProductionId;
     }
 
-    public int WineId { get; set; }
-    public string Label { get; set; }
-    public int ProductionYear { get; set; }
-    public int GrapeId { get; set; }
-    public int CountryProductionId { get; set; }
+    public int WineId { get; init; }
+    public string Label { get; init; }
+    public int ProductionYear { get; init; }
+    public int GrapeId { get; init; }
+    public int CountryProductionId { get; init; }
 
     public static WineRecord Parse(string s, IFormatProvider? provider)
     {
         if (string.IsNullOrWhiteSpace(s)) throw new ArgumentException("Input cannot be null or empty", nameof(s));
 
-        var parts = s.Split(',');
-        if (parts.Length != 5)
-            throw new FormatException("Input string must contain exactly 5 comma-separated values.");
+        var parts = CsvParser.SplitAndValidateCsv(s, 5).Select(p => p.Trim()).ToArray();
 
         return new WineRecord(
             int.Parse(parts[0]),
