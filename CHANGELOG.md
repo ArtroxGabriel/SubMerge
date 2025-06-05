@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/ArtroxGabriel/SubMerge/compare/v1.0.0...v1.1.0) (2025-06-05)
+
+
+### Features
+
+* **data:** add pais.csv and uva.csv ([d3a9d83](https://github.com/ArtroxGabriel/SubMerge/commit/d3a9d83f13abbedb196da0245373ac9174d3416e))
+
 # 1.0.0 (2025-06-02)
 
 
