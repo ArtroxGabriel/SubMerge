@@ -5,6 +5,15 @@
 
 * **data:** add pais.csv and uva.csv ([d3a9d83](https://github.com/ArtroxGabriel/SubMerge/commit/d3a9d83f13abbedb196da0245373ac9174d3416e))
 * **models:** create records for entities ([2cd14f0](https://github.com/ArtroxGabriel/SubMerge/commit/2cd14f0f7a2ddb9f300ffeec048733db8f07554d))
+* **parser:** extract commum logic to csv parser ([618ab6f](https://github.com/ArtroxGabriel/SubMerge/commit/618ab6f94d7382ac304981deef1f1e982682ad99))
+
+# [1.1.0](https://github.com/ArtroxGabriel/SubMerge/compare/v1.0.0...v1.1.0) (2025-06-05)
+
+
+### Features
+
+* **data:** add pais.csv and uva.csv ([d3a9d83](https://github.com/ArtroxGabriel/SubMerge/commit/d3a9d83f13abbedb196da0245373ac9174d3416e))
+* **models:** create records for entities ([2cd14f0](https://github.com/ArtroxGabriel/SubMerge/commit/2cd14f0f7a2ddb9f300ffeec048733db8f07554d))
 
 # [1.1.0](https://github.com/ArtroxGabriel/SubMerge/compare/v1.0.0...v1.1.0) (2025-06-05)
 
