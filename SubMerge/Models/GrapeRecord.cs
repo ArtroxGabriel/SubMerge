@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using SubMerge.Parsers;
 
 namespace SubMerge.Models;
 
@@ -18,19 +19,17 @@ public class GrapeRecord : IParsable<GrapeRecord>
         CountrySourceId = countrySourceId;
     }
 
-    public int GrapeID { get; set; }
-    public string Name { get; set; }
-    public GrapeType Type { get; set; }
-    public int HarvestYear { get; set; }
-    public int CountrySourceId { get; set; }
+    public int GrapeID { get; init; }
+    public string Name { get; init; }
+    public GrapeType Type { get; init; }
+    public int HarvestYear { get; init; }
+    public int CountrySourceId { get; init; }
 
     public static GrapeRecord Parse(string s, IFormatProvider? provider)
     {
         if (string.IsNullOrWhiteSpace(s)) throw new ArgumentException("Input cannot be null or empty", nameof(s));
 
-        var parts = s.Split(',');
-        if (parts.Length != 5)
-            throw new FormatException("Input string must contain exactly 5 comma-separated values.");
+        var parts = CsvParser.SplitAndValidateCsv(s, 5).Select(p => p.Trim()).ToArray();
 
         return new GrapeRecord(
             int.Parse(parts[0]),
