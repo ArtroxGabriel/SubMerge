@@ -583,4 +583,184 @@ public sealed class LRUBufferManagerTests : IDisposable
         // Since page3 was loaded most recently, it should be at the front of the LRU list
         page.PageId.Should().Be(3);
     }
+
+    [Fact]
+    public async Task BufferMetricsAsync_InitialState_ShouldReturnZeroCounts()
+    {
+        // Act
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(0);
+        metrics.TotalWrites.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_AfterReads_ShouldIncrementReadCount()
+    {
+        // Arrange
+        const ulong pageId = 1;
+        var expectedPage = CreateTestPage(pageId);
+
+        _fileManagerMock.Setup(f => f.PageExistsAsync(pageId))
+            .ReturnsAsync(Result<bool, StoreError>.Success(true));
+        _fileManagerMock.Setup(f => f.ReadPageAsync(pageId))
+            .ReturnsAsync(Result<Page, StoreError>.Success(expectedPage));
+
+        // Act - Load a page from file manager (should trigger a read)
+        await _bufferManager.LoadPageAsync(pageId);
+     // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(1);
+        metrics.TotalWrites.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_AfterWrites_ShouldIncrementWriteCount()
+    {
+        // Arrange
+        const ulong pageId = 1;
+        var page = CreateTestPage(pageId);
+
+        _fileManagerMock.Setup(f => f.WritePageAsync(It.IsAny<Page>()))
+            .ReturnsAsync(Result<SubMerge.Models.Unit, StoreError>.Success(SubMerge.Models.Unit.Value));
+
+        // Put page in buffer
+        await _bufferManager.PutPageAsync(page);
+
+        // Act - Flush page (should trigger a write)
+        await _bufferManager.FlushPageAsync(pageId);
+     // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(0);
+        metrics.TotalWrites.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_AfterMultipleOperations_ShouldReflectCorrectCounts()
+    {
+        // Arrange
+        var page1 = CreateTestPage(1);
+        var page2 = CreateTestPage(2);
+        var page3 = CreateTestPage(3);
+
+        // Setup file manager
+        foreach (var page in new[] { page1, page2, page3 })
+        {
+            _fileManagerMock.Setup(f => f.PageExistsAsync(page.PageId))
+                .ReturnsAsync(Result<bool, StoreError>.Success(true));
+            _fileManagerMock.Setup(f => f.ReadPageAsync(page.PageId))
+                .ReturnsAsync(Result<Page, StoreError>.Success(page));
+            _fileManagerMock.Setup(f => f.WritePageAsync(It.Is<Page>(p => p.PageId == page.PageId)))
+                .ReturnsAsync(Result<SubMerge.Models.Unit, StoreError>.Success(SubMerge.Models.Unit.Value));
+        }
+
+        // Act - Perform multiple operations
+        // 2 reads: loading page 1 and 2
+        await _bufferManager.LoadPageAsync(1);
+        await _bufferManager.LoadPageAsync(2);
+     // Load page 3, which should evict page 1 (1 write)
+        await _bufferManager.LoadPageAsync(3);
+     // Explicitly flush page 2 (1 more write)
+        await _bufferManager.FlushPageAsync(2);
+     // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(3); // 3 page loads
+        metrics.TotalWrites.Should().Be(2); // 1 eviction + 1 explicit flush
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_CachingPages_ShouldNotIncrementReadCount()
+    {
+        // Arrange
+        const ulong pageId = 1;
+        var expectedPage = CreateTestPage(pageId);
+
+        _fileManagerMock.Setup(f => f.PageExistsAsync(pageId))
+            .ReturnsAsync(Result<bool, StoreError>.Success(true));
+        _fileManagerMock.Setup(f => f.ReadPageAsync(pageId))
+            .ReturnsAsync(Result<Page, StoreError>.Success(expectedPage));
+
+        // Act
+        // First load - should read from file manager
+        await _bufferManager.LoadPageAsync(pageId);
+
+        // Second load - should use cached page
+        await _bufferManager.LoadPageAsync(pageId);
+
+        // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(1); // Only one actual read from file system
+        metrics.TotalWrites.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_FlushAllFrames_ShouldIncrementWriteCountCorrectly()
+    {
+        // Arrange
+        var page1 = CreateTestPage(1);
+        var page2 = CreateTestPage(2);
+
+        _fileManagerMock.Setup(f => f.WritePageAsync(It.IsAny<Page>()))
+            .ReturnsAsync(Result<SubMerge.Models.Unit, StoreError>.Success(SubMerge.Models.Unit.Value));
+
+        // Put pages in buffer
+        await _bufferManager.PutPageAsync(page1);
+        await _bufferManager.PutPageAsync(page2);
+
+        // Act - Flush all frames
+        await _bufferManager.FlushAllFramesAsync();
+
+        // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(0);
+        metrics.TotalWrites.Should().Be(2); // Both pages were written
+    }
+
+    [Fact]
+    public async Task BufferMetricsAsync_FailedOperations_ShouldNotIncrementCounters()
+    {
+        // Arrange
+        const ulong pageId = 1;
+        var fileError = new StoreError("File error");
+
+        _fileManagerMock.Setup(f => f.PageExistsAsync(pageId))
+            .ReturnsAsync(Result<bool, StoreError>.Success(true));
+        _fileManagerMock.Setup(f => f.ReadPageAsync(pageId))
+            .ReturnsAsync(Result<Page, StoreError>.Error(fileError));
+
+        // Act - Attempt to load page (should fail)
+        await _bufferManager.LoadPageAsync(pageId);
+
+        // Get metrics
+        var result = await _bufferManager.BufferMetricsAsync();
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var metrics = result.GetValueOrThrow();
+        metrics.TotalReads.Should().Be(0); // Failed read should not increment counter
+        metrics.TotalWrites.Should().Be(0);
+    }
 }
