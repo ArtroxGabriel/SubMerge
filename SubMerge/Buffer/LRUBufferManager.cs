@@ -17,6 +17,9 @@ public sealed class LruBufferManager
     private readonly Dictionary<ulong, Page> _pageFrames = new();
     private readonly LinkedList<ulong> _pageLruList = [];
 
+    private int _readCount;
+    private int _writeCount;
+
     public LruBufferManager(
         IFileManager fileManager,
         ulong amountOfPageFrames = 2,
@@ -42,6 +45,14 @@ public sealed class LruBufferManager
             "LRU buffer manager initialized with {PageFrames} page frames and {IndexFrames} index frames",
             _amountOfPageFrames, _amountOfIndexFrames);
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
+    }
+
+    public async Task<Result<BufferMetrics, BufferError>> BufferMetricsAsync()
+    {
+        return await Task.FromResult(
+            Result<BufferMetrics, BufferError>.Success(
+                new BufferMetrics(_readCount, _writeCount)
+            ));
     }
 
     public async Task<Result<Page, BufferError>> GetRandomPageAsync()
@@ -113,6 +124,8 @@ public sealed class LruBufferManager
             return await Task.FromResult(Result<Page, BufferError>.Error(
                 new BufferError($"Failed to read page from file manager {error}")));
         }
+
+        _readCount++;
 
         var pageData = pageResult.GetValueOrThrow();
 
@@ -193,6 +206,8 @@ public sealed class LruBufferManager
                 new BufferError($"Failed to write page {pageId} to file manager {error}")));
         }
 
+        _writeCount++;
+
         _logger.Information("Flushed page {PageId}", pageId);
 
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
@@ -229,6 +244,8 @@ public sealed class LruBufferManager
                 return await Task.FromResult(Result<Unit, BufferError>.Error(
                     new BufferError($"Failed to flush page {frame.PageId} to file manager {error}")));
             }
+
+            _writeCount++;
         }
 
         _logger.Information("Flushed all page frames");
