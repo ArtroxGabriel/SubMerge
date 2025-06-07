@@ -611,7 +611,7 @@ public sealed class LRUBufferManagerTests : IDisposable
 
         // Act - Load a page from file manager (should trigger a read)
         await _bufferManager.LoadPageAsync(pageId);
-     // Get metrics
+        // Get metrics
         var result = await _bufferManager.BufferMetricsAsync();
 
         // Assert
@@ -636,7 +636,7 @@ public sealed class LRUBufferManagerTests : IDisposable
 
         // Act - Flush page (should trigger a write)
         await _bufferManager.FlushPageAsync(pageId);
-     // Get metrics
+        // Get metrics
         var result = await _bufferManager.BufferMetricsAsync();
 
         // Assert
@@ -669,11 +669,11 @@ public sealed class LRUBufferManagerTests : IDisposable
         // 2 reads: loading page 1 and 2
         await _bufferManager.LoadPageAsync(1);
         await _bufferManager.LoadPageAsync(2);
-     // Load page 3, which should evict page 1 (1 write)
+        // Load page 3, which should evict page 1 (1 write)
         await _bufferManager.LoadPageAsync(3);
-     // Explicitly flush page 2 (1 more write)
+        // Explicitly flush page 2 (1 more write)
         await _bufferManager.FlushPageAsync(2);
-     // Get metrics
+        // Get metrics
         var result = await _bufferManager.BufferMetricsAsync();
 
         // Assert
