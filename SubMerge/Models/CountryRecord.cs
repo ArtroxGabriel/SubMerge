@@ -3,7 +3,7 @@ using SubMerge.Parsers;
 
 namespace SubMerge.Models;
 
-public struct CountryRecord : IParsable<CountryRecord>
+public record struct CountryRecord : IParsable<CountryRecord>
 {
     public CountryRecord(int countryId, string name, string code)
     {

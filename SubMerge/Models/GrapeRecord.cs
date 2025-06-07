@@ -3,7 +3,7 @@ using SubMerge.Parsers;
 
 namespace SubMerge.Models;
 
-public class GrapeRecord : IParsable<GrapeRecord>
+public record struct GrapeRecord : IParsable<GrapeRecord>
 {
     public GrapeRecord(int grapeId, string name, GrapeType type, int harvestYear, int countrySourceId)
     {
