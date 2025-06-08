@@ -26,7 +26,7 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
 
         var leftTableTuples = new TLeft[leftTable.TupleCount];
 
-        for (int i = 0; i < leftTable.TupleCount; i++)
+        for (var i = 0; i < leftTable.TupleCount; i++)
         {
             var pageId = new PageId(i, leftTable.Name);
             var pinResult = await bufferManager.PinPageAsync(pageId);
@@ -41,7 +41,7 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
 
             foreach (var tuple in page.Content)
             {
-                TLeft record = new TLeft();
+                var record = new TLeft();
 
                 record.FromTuple(tuple);
 
@@ -49,11 +49,13 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
             }
         }
 
-        var sortedLeftTableTuples = leftTableTuples.OrderBy(tuple => leftJoinSelector.Compile()(tuple));
+        var sortedLeftTableTuples = leftTableTuples
+            .OrderBy(tuple => leftJoinSelector.Compile()(tuple))
+            .ToList();
 
         var rightTableTuples = new TRight[rightTable.TupleCount];
 
-        for (int i = 0; i < rightTable.TupleCount; i++)
+        for (var i = 0; i < rightTable.TupleCount; i++)
         {
             var pageId = new PageId(i, rightTable.Name);
             var pinResult = await bufferManager.PinPageAsync(pageId);
@@ -68,7 +70,7 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
 
             foreach (var tuple in page.Content)
             {
-                TRight record = new TRight();
+                var record = new TRight();
 
                 record.FromTuple(tuple);
 
@@ -77,7 +79,8 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
         }
 
         var sortedRightTableTuples = rightTableTuples
-            .OrderBy(tuple => rightJoinSelector.Compile()(tuple));
+            .OrderBy(tuple => rightJoinSelector.Compile()(tuple))
+            .ToList();
 
         var rightTablePointer = 0;
 
@@ -97,9 +100,54 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
         // 1, joao, 3, joao, joao
         // 2, joao, 5, joao, joao
 
+        // FIXME: Confere isso, ve o que tu acha @TalDoFlemis
         foreach (var leftTuple in sortedLeftTableTuples)
         {
-            while (rightTablePointer < sortedRightTableTuples.Count())
+            var leftJoinValue = leftJoinSelector.Compile()(leftTuple);
+
+            var rightStart = rightTablePointer;
+            var foundMatch = false;
+
+            // Process all right tuples with matching join value
+            while (rightTablePointer < sortedRightTableTuples.Count)
+            {
+                var rightTuple = sortedRightTableTuples.ElementAt(rightTablePointer);
+                var rightJoinValue = rightJoinSelector.Compile()(rightTuple);
+
+                var comparison = Comparer<object>.Default.Compare(leftJoinValue, rightJoinValue);
+
+                if (comparison > 0)
+                {
+                    // Left value is greater, advance right pointer to find potential matches
+                    rightTablePointer++;
+                    rightStart = rightTablePointer;
+                }
+                else if (comparison < 0)
+                {
+                    // Left value is smaller, move to next left tuple
+                    break;
+                }
+                else // Equal values - we have a match
+                {
+                    foundMatch = true;
+                    rightTablePointer++;
+                }
+            }
+
+            // If we found at least one match, process all matches
+            if (foundMatch)
+            {
+                // Process all right tuples with the matching join value
+                for (var j = rightStart; j < rightTablePointer; j++)
+                    joinResults.Add(resultSelector(leftTuple, sortedRightTableTuples.ElementAt(j)));
+
+                // Reset right pointer to start of matching partition for next left tuple with same value
+                rightTablePointer = rightStart;
+            }
+        }
+
+        foreach (var leftTuple in sortedLeftTableTuples)
+            while (rightTablePointer < sortedRightTableTuples.Count)
             {
                 var rightTuple = sortedRightTableTuples.ElementAt(rightTablePointer);
                 var leftJoinValue = leftJoinSelector.Compile()(leftTuple);
@@ -108,15 +156,10 @@ public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
                 rightTablePointer++;
 
                 if (leftJoinValue.Equals(rightJoinValue))
-                {
                     joinResults.Add(resultSelector(leftTuple, rightTuple));
-                }
                 else
-                {
                     break; // No match found, move to next left tuple
-                }
             }
-        }
 
         _logger.Information("Sort-merge equality join completed with {JoinResultCount} results",
             joinResults.Count);
