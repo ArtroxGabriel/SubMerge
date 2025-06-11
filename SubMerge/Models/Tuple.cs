@@ -7,7 +7,7 @@ public class Tuple
         Columns = cols;
     }
 
-    public required string[] Columns { get; set; }
+    public string[] Columns { get; set; }
 
     public override string ToString()
     {
