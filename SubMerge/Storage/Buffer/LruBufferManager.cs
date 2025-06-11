@@ -82,7 +82,10 @@ public sealed class LruBufferManager
         if (_pageFrames.Count < (int)_amountOfPageFrames)
         {
             _logger.Debug("Adding page {PageId} to buffer", pageData.PageId);
-            _pageFrames.Add(pageData.PageId, pageData);
+
+            _pageFrames.Add(pageData.PageId, new BufferFrame(
+                pageData
+            ));
             _pageLruList.AddFirst(pageData.PageId);
 
             return await Task.FromResult(Result<Models.Page, BufferError>.Success(pageData));
@@ -102,7 +105,7 @@ public sealed class LruBufferManager
                 new BufferError($"Failed to evict page from buffer {result.GetErrorOrThrow()}")));
         }
 
-        _pageFrames.Add(pageData.PageId, pageData);
+        _pageFrames.Add(pageData.PageId, new BufferFrame(pageData));
         _pageLruList.AddFirst(pageData.PageId);
 
         return await Task.FromResult(Result<Models.Page, BufferError>.Success(pageData));
@@ -132,8 +135,8 @@ public sealed class LruBufferManager
 
         _logger.Debug("Adding page {PageId} to buffer", pageId);
 
-        _pageFrames.Add(pageId, pageId);
-        _pageLruList.AddFirst(pageId);
+        _pageFrames.Remove(pageId);
+        _pageLruList.Remove(pageId);
 
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
     }
@@ -142,13 +145,15 @@ public sealed class LruBufferManager
     {
         _logger.Debug("Flushing page {PageId}", pageId);
 
-        if (!_pageFrames.TryGetValue(pageId, out var page))
+        if (_pageFrames.TryGetValue(pageId, out var page))
         {
             _logger.Warning("Page {PageId} not found in buffer", pageId);
             return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
         }
 
-        var result = await _pageManager.WritePageAsync(pageId, page);
+        Debug.Assert(page != null, "Page should not be null at this point");
+
+        var result = await _pageManager.WritePageAsync(pageId, page.Page);
         if (result.IsError)
         {
             var error = result.GetErrorOrThrow();
@@ -166,15 +171,15 @@ public sealed class LruBufferManager
         _logger.Debug("Flushing all frames");
 
         _logger.Debug("Flushing all page frames");
-        foreach (var frame in _pageFrames.Values.ToList())
+        foreach (var (pageId, frame) in _pageFrames)
         {
             var result = await _pageManager.WritePageAsync(pageId, frame.Page);
             if (result.IsError)
             {
                 var error = result.GetErrorOrThrow();
-                _logger.Error("Failed to flush page {PageId}: {Error}", frame.PageId, error);
+                _logger.Error("Failed to flush page {PageId}: {Error}", pageId, error);
                 return await Task.FromResult(Result<Unit, BufferError>.Error(
-                    new BufferError($"Failed to flush page {frame.PageId} to file manager {error}")));
+                    new BufferError($"Failed to flush page {pageId} to file manager {error}")));
             }
         }
 
@@ -212,12 +217,11 @@ public sealed class LruBufferManager
                 new BufferError("No pages to evict")));
 
         var lruPageId = _pageLruList.Last.Value;
-        var evictedPage = _pageFrames[lruPageId];
-        var pageWriteResult = await FlushPageAsync(evictedPage.PageId);
+        var pageWriteResult = await FlushPageAsync(lruPageId);
         if (pageWriteResult.IsError)
         {
             var error = pageWriteResult.GetErrorOrThrow();
-            _logger.Error("Failed to write evicted page {PageId} to file manager: {Error}", evictedPage.PageId, error);
+            _logger.Error("Failed to write evicted page {PageId} to file manager: {Error}", lruPageId, error);
             return await Task.FromResult(Result<Unit, BufferError>.Error(
                 new BufferError($"Failed to write evicted page to file manager {error}")));
         }

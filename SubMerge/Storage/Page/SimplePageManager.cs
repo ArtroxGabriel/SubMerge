@@ -31,7 +31,7 @@ public class SimplePageManager(
 
         var buffer = new byte[pageSizeInBytes];
 
-        var bytesRead = await openFile.ReadAsync(buffer, 0, pageSizeInBytes);
+        var bytesRead = await openFile.ReadAsync(buffer.AsMemory(0, pageSizeInBytes));
 
         if (bytesRead == 0)
         {
@@ -187,6 +187,26 @@ public class SimplePageManager(
             return await Task.FromResult(Result<bool, PageManagerError>
                 .Error(new PageManagerError($"Failed to check page space: {e.Message}")));
         }
+    }
+
+    public async Task<Result<bool, PageManagerError>> PageExistsAsync(PageId pageId)
+    {
+        _logger.Debug("Checking if page {PageId} exists", pageId);
+
+        return await fileManager.FileExistsAsync(pageId.FileName)
+            .ContinueWith(task =>
+            {
+                if (task.IsFaulted)
+                {
+                    _logger.Error("Failed to check if file exists for page {PageId}: {Error}", pageId,
+                        task.Exception?.GetBaseException().Message);
+                    return Result<bool, PageManagerError>.Error(
+                        new PageManagerError("Failed to check if file exists"));
+                }
+
+                _logger.Information("File for page {PageId} exists", pageId);
+                return Result<bool, PageManagerError>.Success(task.Result.GetValueOrThrow());
+            });
     }
 
     private Result<Unit, PageManagerError> UpdateHeapMetadataFile(string metadataFilePath, HeapFileMetadata metadata)
