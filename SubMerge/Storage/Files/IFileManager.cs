@@ -34,6 +34,8 @@ public interface IFileManager
     /// <param name="fileName">The name of the file to close.</param>
     /// <returns>A result indicating success or a file error.</returns>
     Task<Result<Unit, FileError>> CloseFileAsync(string fileName);
+
+    Task<Result<bool, FileError>> FileExistsAsync(string fileName);
 }
 
 public readonly struct FileError
