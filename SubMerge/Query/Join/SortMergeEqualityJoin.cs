@@ -9,7 +9,7 @@ namespace SubMerge.Query.Join;
 public class SortMergeEqualityJoin<TLeft, TRight, TJoinResult>(
     IBufferManager bufferManager,
     IPageManager pageManager
-) : EqualityJoin<TLeft, TRight, TJoinResult>
+) : IEqualityJoin<TLeft, TRight, TJoinResult>
     where TRight : IRecord, new()
     where TLeft : IRecord, new()
     where TJoinResult : new()

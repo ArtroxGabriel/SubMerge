@@ -3,7 +3,7 @@ using SubMerge.Models;
 
 namespace SubMerge.Query.Join;
 
-public interface EqualityJoin<TLeft, TRight, TJoinResult>
+public interface IEqualityJoin<TLeft, TRight, TJoinResult>
 {
     public Task<Result<IEnumerable<TJoinResult>, EqualityJoinError>> JoinIntoMemory(
         Table leftTable,
@@ -16,10 +16,10 @@ public interface EqualityJoin<TLeft, TRight, TJoinResult>
 
 public class EqualityJoinError
 {
-    public string Message { get; }
-
     public EqualityJoinError(string message)
     {
         Message = message;
     }
+
+    public string Message { get; }
 }

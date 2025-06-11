@@ -130,7 +130,8 @@ public class SimplePageManager(
         var openFileResult = await fileManager.OpenFileAsync(fileName);
         if (openFileResult.IsError)
         {
-            _logger.Error("Failed to open file for page {FileName}: {Error}", fileName, openFileResult.GetErrorOrThrow());
+            _logger.Error("Failed to open file for page {FileName}: {Error}", fileName,
+                openFileResult.GetErrorOrThrow());
             return Result<Models.Page, PageManagerError>.Error(new PageManagerError("Failed to open file for page"));
         }
 
