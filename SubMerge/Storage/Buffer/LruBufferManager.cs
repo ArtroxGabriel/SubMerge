@@ -1,34 +1,34 @@
-using SubMerge.Models;
-
-namespace SubMerge.Storage.Buffer;
-
 using System.Diagnostics;
 using Serilog;
+using SubMerge.Models;
+using SubMerge.Storage.Page;
+
+namespace SubMerge.Storage.Buffer;
 
 public sealed class LruBufferManager
     : IBufferManager, IDisposable
 {
     private readonly ulong _amountOfPageFrames;
-    private readonly IFileManager _fileManager;
     private readonly ILogger _logger = Log.ForContext<LruBufferManager>();
     private readonly Dictionary<PageId, BufferFrame> _pageFrames = new();
     private readonly LinkedList<PageId> _pageLruList = [];
+    private readonly IPageManager _pageManager;
 
     public LruBufferManager(
-        IFileManager fileManager,
+        IPageManager pageManager,
         ulong amountOfPageFrames = 4
     )
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amountOfPageFrames);
         _amountOfPageFrames = amountOfPageFrames;
-        _fileManager = fileManager;
+        _pageManager = pageManager;
     }
 
     public async Task<Result<Unit, BufferError>> InitializeAsync()
     {
         _logger.Debug("Initializing LRU buffer manager");
         Debug.Assert(_amountOfPageFrames > 0);
-        Debug.Assert(_fileManager != null);
+        Debug.Assert(_pageManager != null);
 
 
         _logger.Information(
@@ -37,7 +37,7 @@ public sealed class LruBufferManager
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
     }
 
-    public async Task<Result<Page, BufferError>> PinPageAsync(PageId pageId)
+    public async Task<Result<Models.Page, BufferError>> PinPageAsync(PageId pageId)
     {
         _logger.Debug("Loading page {PageId}", pageId);
 
@@ -47,33 +47,33 @@ public sealed class LruBufferManager
             _pageLruList.Remove(pageId);
             _pageLruList.AddFirst(pageId);
             frame.PinCount++;
-            return await Task.FromResult(Result<Page, BufferError>.Success(frame.Page));
+            return await Task.FromResult(Result<Models.Page, BufferError>.Success(frame.Page));
         }
 
         _logger.Debug("Page {PageId} not found in buffer, loading from file manager", pageId);
 
-        var result = await _fileManager.PageExistsAsync(pageId);
+        var result = await _pageManager.PageExistsAsync(pageId);
         if (result.IsError)
         {
             var error = result.GetErrorOrThrow();
             _logger.Error("Failed to load page {PageId} from file manager: {Error}", pageId, error);
-            return await Task.FromResult(Result<Page, BufferError>.Error(
+            return await Task.FromResult(Result<Models.Page, BufferError>.Error(
                 new BufferError($"Failed to check if page exists on file manager {result.GetErrorOrThrow()}")));
         }
 
         if (!result.GetValueOrThrow())
         {
             _logger.Error("Page {PageId} does not exist in file manager", pageId);
-            return await Task.FromResult(Result<Page, BufferError>.Error(
+            return await Task.FromResult(Result<Models.Page, BufferError>.Error(
                 new BufferError($"Page {pageId} does not exist in file manager")));
         }
 
-        var pageResult = await _fileManager.ReadPageAsync(pageId);
+        var pageResult = await _pageManager.ReadPageAsync(pageId);
         if (pageResult.IsError)
         {
             var error = pageResult.GetErrorOrThrow();
             _logger.Error("Failed to read page {PageId} from file manager: {Error}", pageId, error);
-            return await Task.FromResult(Result<Page, BufferError>.Error(
+            return await Task.FromResult(Result<Models.Page, BufferError>.Error(
                 new BufferError($"Failed to read page from file manager {result.GetErrorOrThrow()}")));
         }
 
@@ -85,7 +85,7 @@ public sealed class LruBufferManager
             _pageFrames.Add(pageData.PageId, pageData);
             _pageLruList.AddFirst(pageData.PageId);
 
-            return await Task.FromResult(Result<Page, BufferError>.Success(pageData));
+            return await Task.FromResult(Result<Models.Page, BufferError>.Success(pageData));
         }
 
         _logger.Debug("Buffer is full, evicting least recently used page");
@@ -98,22 +98,22 @@ public sealed class LruBufferManager
         {
             var error = evictResult.GetErrorOrThrow();
             _logger.Error("Failed to evict page from buffer: {Error}", error);
-            return await Task.FromResult(Result<Page, BufferError>.Error(
+            return await Task.FromResult(Result<Models.Page, BufferError>.Error(
                 new BufferError($"Failed to evict page from buffer {result.GetErrorOrThrow()}")));
         }
 
         _pageFrames.Add(pageData.PageId, pageData);
         _pageLruList.AddFirst(pageData.PageId);
 
-        return await Task.FromResult(Result<Page, BufferError>.Success(pageData));
+        return await Task.FromResult(Result<Models.Page, BufferError>.Success(pageData));
     }
 
     public async Task<Result<Unit, BufferError>> UnpinPageAsync(PageId pageId)
     {
         _logger.Debug("Putting page {PageId} to buffer", pageId);
-        if (_pageFrames.ContainsKey(pageId.PageId))
+        if (_pageFrames.ContainsKey(pageId))
         {
-            _logger.Debug("Page {PageId} already exists in buffer", pageId.PageId);
+            _logger.Debug("Page {PageId} already exists in buffer", pageId);
             return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
         }
 
@@ -130,15 +130,15 @@ public sealed class LruBufferManager
             }
         }
 
-        _logger.Debug("Adding page {PageId} to buffer", pageId.PageId);
+        _logger.Debug("Adding page {PageId} to buffer", pageId);
 
-        _pageFrames.Add(pageId.PageId, pageId);
-        _pageLruList.AddFirst(pageId.PageId);
+        _pageFrames.Add(pageId, pageId);
+        _pageLruList.AddFirst(pageId);
 
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
     }
 
-    public async Task<Result<Unit, BufferError>> FlushPageAsync(ulong pageId)
+    public async Task<Result<Unit, BufferError>> FlushPageAsync(PageId pageId)
     {
         _logger.Debug("Flushing page {PageId}", pageId);
 
@@ -148,7 +148,7 @@ public sealed class LruBufferManager
             return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
         }
 
-        var result = await _fileManager.WritePageAsync(page);
+        var result = await _pageManager.WritePageAsync(pageId, page);
         if (result.IsError)
         {
             var error = result.GetErrorOrThrow();
@@ -161,22 +161,6 @@ public sealed class LruBufferManager
         return await Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
     }
 
-    public Task<Result<Unit, BufferError>> SetPageDirty(ulong pageId)
-    {
-        _logger.Debug("Setting page {PageId} as dirty", pageId);
-        if (_pageFrames.TryGetValue(pageId, out var page))
-        {
-            page.IsDirty = true;
-            _logger.Information("Page {PageId} set as dirty", pageId);
-        }
-        else
-        {
-            _logger.Warning("Page {PageId} not found in buffer", pageId);
-        }
-
-        return Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
-    }
-
     public async Task<Result<Unit, BufferError>> FlushAllFramesAsync()
     {
         _logger.Debug("Flushing all frames");
@@ -184,7 +168,7 @@ public sealed class LruBufferManager
         _logger.Debug("Flushing all page frames");
         foreach (var frame in _pageFrames.Values.ToList())
         {
-            var result = await _fileManager.WritePageAsync(frame);
+            var result = await _pageManager.WritePageAsync(pageId, frame.Page);
             if (result.IsError)
             {
                 var error = result.GetErrorOrThrow();
@@ -203,6 +187,22 @@ public sealed class LruBufferManager
 
     public void Dispose()
     {
+    }
+
+    public Task<Result<Unit, BufferError>> SetPageDirty(PageId pageId)
+    {
+        _logger.Debug("Setting page {PageId} as dirty", pageId);
+        if (_pageFrames.TryGetValue(pageId, out var page))
+        {
+            page.IsDirty = true;
+            _logger.Information("Page {PageId} set as dirty", pageId);
+        }
+        else
+        {
+            _logger.Warning("Page {PageId} not found in buffer", pageId);
+        }
+
+        return Task.FromResult(Result<Unit, BufferError>.Success(Unit.Value));
     }
 
     private async Task<Result<Unit, BufferError>> EvictLruPage()

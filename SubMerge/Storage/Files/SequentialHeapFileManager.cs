@@ -117,6 +117,24 @@ public class SequentialHeapFileManager(
         return await Task.FromResult(Result<Unit, FileError>.Success(Unit.Value));
     }
 
+    public Task<Result<bool, FileError>> FileExistsAsync(string fileName)
+    {
+        _logger.Debug("Checking if file exists: {FileName}", fileName);
+
+        var filePath = Path.Combine(storagePath, fileName);
+        var heapFileExists = File.Exists(filePath + ".heap");
+        var metadataFileExists = File.Exists(filePath + ".metadata");
+
+        if (heapFileExists && metadataFileExists)
+        {
+            _logger.Information("File exists on disk: {FileName}", fileName);
+            return Task.FromResult(Result<bool, FileError>.Success(true));
+        }
+
+        _logger.Information("File does not exist on disk: {FileName}", fileName);
+        return Task.FromResult(Result<bool, FileError>.Success(false));
+    }
+
     private Result<Unit, FileError> CreateDirectory(string directory)
     {
         _logger.Debug("Creating storage directory: {StoragePath}", directory);

@@ -10,6 +10,8 @@ public interface IPageManager
     Task<Result<Unit, PageManagerError>> WritePageAsync(PageId pageId, Models.Page page);
     Task<Result<Models.Page, PageManagerError>> AllocateNewPageAsync(string fileName);
     Task<Result<bool, PageManagerError>> HasEnoughSpaceToInsertTuple(Models.Page page, Tuple tuple);
+
+    Task<Result<bool, PageManagerError>> PageExistsAsync(PageId pageId);
 }
 
 public readonly struct PageManagerError

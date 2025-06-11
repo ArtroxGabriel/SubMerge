@@ -2,7 +2,6 @@ using SubMerge.Models;
 
 namespace SubMerge.Storage.Buffer;
 
-
 public interface IBufferManager
 {
     Task<Result<Unit, BufferError>> InitializeAsync();

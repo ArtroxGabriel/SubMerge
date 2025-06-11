@@ -4,4 +4,3 @@ public interface IRecord
 {
     IRecord FromTuple(Tuple tuple);
 }
-

@@ -20,10 +20,7 @@ public class Page
 
     public void AddTuple(Tuple tuple)
     {
-        if (Content.Length > 10)
-        {
-            throw new InvalidOperationException("Page is full, cannot add more tuples.");
-        }
+        if (Content.Length > 10) throw new InvalidOperationException("Page is full, cannot add more tuples.");
 
         Content = Content.Append(tuple).ToArray();
         LastUpdated = DateTime.UtcNow;
