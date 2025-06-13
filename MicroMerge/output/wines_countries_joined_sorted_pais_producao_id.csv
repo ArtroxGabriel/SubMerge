@@ -1,0 +1,44 @@
+vinho_id,rotulo,ano_producao,uva_id,pais_producao_id,pais_id,nome,sigla
+392,heather-dolcetto,1920,10,0,0,Argentina,ARG
+420,swarm-dolcetto,1974,31,0,0,Argentina,ARG
+479,glad-prosecco,1974,31,0,0,Argentina,ARG
+262,exact-port,1968,68,0,0,Argentina,ARG
+322,isometric-sauvignon,1970,2,0,0,Argentina,ARG
+421,diachronic-port,1992,33,0,0,Argentina,ARG
+489,mild-chinon,1964,20,0,0,Argentina,ARG
+327,soluble-pinot,1934,32,0,0,Argentina,ARG
+423,archaic-auslese,1916,38,0,0,Argentina,ARG
+490,polite-barolo,2008,69,0,0,Argentina,ARG
+1,roaring-claret,2020,41,0,0,Argentina,ARG
+33,iron-marsanne,1966,67,0,0,Argentina,ARG
+68,smoggy-barolo,1996,29,0,0,Argentina,ARG
+101,quantum-chardonnay,1948,49,0,0,Argentina,ARG
+141,brave-pinot,1928,54,0,0,Argentina,ARG
+165,magnetic-chinon,1936,63,0,0,Argentina,ARG
+198,silver-banylus,1950,23,0,0,Argentina,ARG
+233,rust-muscat,1924,9,0,0,Argentina,ARG
+266,heather-chianti,1958,52,0,0,Argentina,ARG
+298,sensitive-lambrusco,1912,64,0,0,Argentina,ARG
+497,angry-noir,1948,44,1,1,Portugal,PRT
+335,figurative-amarone,1964,60,1,1,Portugal,PRT
+132,lime-auslese,1988,53,1,1,Portugal,PRT
+430,randomized-grappa,1912,64,1,1,Portugal,PRT
+34,weathered-marsanne,1934,32,1,1,Portugal,PRT
+272,metal-moscato,2020,41,1,1,Portugal,PRT
+0,jolly-barolo,1996,30,1,1,Portugal,PRT
+496,tart-prosecco,1952,48,2,2,Estados Unidos,EUA
+264,energetic-rosé,1978,24,2,2,Estados Unidos,EUA
+463,sizzling-merlot,1958,52,2,2,Estados Unidos,EUA
+36,frosty-claret,1964,20,2,2,Estados Unidos,EUA
+201,rounded-zinfandel,1958,34,2,2,Estados Unidos,EUA
+100,glass-barolo,1972,25,2,2,Estados Unidos,EUA
+367,muted-muscat,1968,27,2,2,Estados Unidos,EUA
+304,interior-moscato,2008,69,2,2,Estados Unidos,EUA
+495,feasible-marsanne,1992,33,3,3,Argentina,ARG
+465,mode-prosecco,1998,42,3,3,Argentina,ARG
+368,pizzicato-riesling,1928,40,3,3,Argentina,ARG
+67,parallel-albariño,1958,43,3,3,Argentina,ARG
+297,isochoric-claret,1920,7,3,3,Argentina,ARG
+231,staccato-zinfandel,1964,20,3,3,Argentina,ARG
+166,acute-beaujolais,1920,62,3,3,Argentina,ARG
+134,faint-barbaresco,1920,7,3,3,Argentina,ARG
