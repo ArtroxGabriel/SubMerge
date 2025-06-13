@@ -1,7 +1,8 @@
 using System.Globalization;
 using CsvHelper;
+using MicroMerge.Models.Record;
 
-namespace MicroMerge;
+namespace MicroMerge.Tables;
 
 public class GrapeTable : Table
 {
@@ -16,7 +17,6 @@ public class GrapeTable : Table
         var page = new Page(new PageId(Name, PageAmount), []);
 
         foreach (var grapeRecord in records)
-        {
             if (recordOnPage != 10)
             {
                 recordOnPage++;
@@ -28,22 +28,11 @@ public class GrapeTable : Table
                 page = new Page(new PageId(Name, PageAmount), []);
                 recordOnPage = 0;
             }
-        }
 
-        if (page.Records.Count > 0)
-        {
-            Pages.Add(page);
-        }
+        if (page.Records.Count > 0) Pages.Add(page);
 
         Columns = new List<string>(
-            new[]
-            {
-                "uva_id",
-                "nome",
-                "tipo",
-                "ano_colheita",
-                "pais_origem_id"
-            }
+            new[] { "uva_id", "nome", "tipo", "ano_colheita", "pais_origem_id" }
         );
     }
 }

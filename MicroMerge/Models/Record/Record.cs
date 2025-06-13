@@ -1,4 +1,4 @@
-namespace MicroMerge;
+namespace MicroMerge.Models.Record;
 
 public class Record
 {
@@ -11,7 +11,8 @@ public class Record
         set
         {
             if (index < 0 || index >= Columns.Count)
-                throw new IndexOutOfRangeException($"Index {index} is out of range for record with {Columns.Count} columns.");
+                throw new IndexOutOfRangeException(
+                    $"Index {index} is out of range for record with {Columns.Count} columns.");
             Columns[index] = value;
         }
     }
@@ -20,14 +21,14 @@ public class Record
     {
         get
         {
-            int index = ColumnNames.IndexOf(columnName);
+            var index = ColumnNames.IndexOf(columnName);
             if (index == -1)
                 throw new KeyNotFoundException($"Column '{columnName}' not found in record.");
             return Columns[index];
         }
         set
         {
-            int index = ColumnNames.IndexOf(columnName);
+            var index = ColumnNames.IndexOf(columnName);
             if (index == -1)
                 throw new KeyNotFoundException($"Column '{columnName}' not found in record.");
             Columns[index] = value;

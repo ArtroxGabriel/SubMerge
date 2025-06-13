@@ -1,10 +1,10 @@
-using System.Collections;
-using CsvHelper;
 using System.Globalization;
+using CsvHelper;
+using MicroMerge.Models.Record;
 
-namespace MicroMerge;
+namespace MicroMerge.Tables;
 
-public class SortedTable: IDisposable
+public class SortedTable : IDisposable
 {
     private readonly string _filePath;
 
@@ -30,6 +30,12 @@ public class SortedTable: IDisposable
     public int PageAmount { get; private set; }
     public int AmountOfColumns => Columns.Count;
 
+    public void Dispose()
+    {
+        Cleanup();
+        GC.SuppressFinalize(this);
+    }
+
     public IEnumerable<Page> GetPagesIterable()
     {
         if (!File.Exists(_filePath))
@@ -38,7 +44,7 @@ public class SortedTable: IDisposable
         using var fileStream = new FileStream(_filePath, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(fileStream);
 
-        int pageIndex = 0;
+        var pageIndex = 0;
 
         try
         {
@@ -47,7 +53,7 @@ public class SortedTable: IDisposable
                 var records = new List<Record>();
 
                 // Read up to 10 records for this page
-                for (int i = 0; i < 10 && fileStream.Position < fileStream.Length; i++)
+                for (var i = 0; i < 10 && fileStream.Position < fileStream.Length; i++)
                 {
                     var record = ReadRecord(reader);
                     record.ColumnNames = Columns;
@@ -73,7 +79,7 @@ public class SortedTable: IDisposable
         using var fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write);
         using var writer = new BinaryWriter(fileStream);
 
-        int recordCount = 0;
+        var recordCount = 0;
         foreach (var record in sortedRecords)
         {
             WriteRecord(writer, record);
@@ -88,7 +94,7 @@ public class SortedTable: IDisposable
         using var fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write);
         using var writer = new BinaryWriter(fileStream);
 
-        int recordCount = 0;
+        var recordCount = 0;
         foreach (var record in page.Records)
         {
             WriteRecord(writer, record);
@@ -100,10 +106,7 @@ public class SortedTable: IDisposable
 
     internal void DeleteFile()
     {
-        if (File.Exists(_filePath))
-        {
-            File.Delete(_filePath);
-        }
+        if (File.Exists(_filePath)) File.Delete(_filePath);
     }
 
     private Record ReadRecord(BinaryReader reader)
@@ -111,7 +114,7 @@ public class SortedTable: IDisposable
         var record = new Record();
         var columnCount = reader.ReadInt32();
 
-        for (int i = 0; i < columnCount; i++)
+        for (var i = 0; i < columnCount; i++)
         {
             var value = reader.ReadString();
             record.Columns.Add(value);
@@ -123,10 +126,7 @@ public class SortedTable: IDisposable
     private void WriteRecord(BinaryWriter writer, Record record)
     {
         writer.Write(record.Columns.Count);
-        foreach (var value in record.Columns)
-        {
-            writer.Write(value ?? string.Empty);
-        }
+        foreach (var value in record.Columns) writer.Write(value ?? string.Empty);
     }
 
     public void WriteToCsv(string csvFilePath)
@@ -135,24 +135,16 @@ public class SortedTable: IDisposable
         using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
 
         // Write the header (column names)
-        foreach (var column in Columns)
-        {
-            csv.WriteField(column);
-        }
+        foreach (var column in Columns) csv.WriteField(column);
         csv.NextRecord();
 
         // Read all pages and write their records to CSV
         foreach (var page in GetPagesIterable())
+        foreach (var record in page.Records)
         {
-            foreach (var record in page.Records)
-            {
-                // Write each column value for the record
-                foreach (var columnValue in record.Columns)
-                {
-                    csv.WriteField(columnValue);
-                }
-                csv.NextRecord();
-            }
+            // Write each column value for the record
+            foreach (var columnValue in record.Columns) csv.WriteField(columnValue);
+            csv.NextRecord();
         }
 
         // Write the CSV content to file
@@ -163,15 +155,6 @@ public class SortedTable: IDisposable
     public void Cleanup()
     {
         // Delete the temporary file if it exists
-        if (File.Exists(_filePath))
-        {
-            File.Delete(_filePath);
-        }
-    }
-
-    public void Dispose()
-    {
-        Cleanup();
-        GC.SuppressFinalize(this);
+        if (File.Exists(_filePath)) File.Delete(_filePath);
     }
 }
