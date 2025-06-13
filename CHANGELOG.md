@@ -1,3 +1,16 @@
+# [1.2.0](https://github.com/ArtroxGabriel/SubMerge/compare/v1.1.0...v1.2.0) (2025-06-13)
+
+
+### Features
+
+* add base things ([bd82061](https://github.com/ArtroxGabriel/SubMerge/commit/bd820611827c31210e7b2642cc40fa35072390fd))
+* add country table ([e9cef2c](https://github.com/ArtroxGabriel/SubMerge/commit/e9cef2c6201ec4f87befec995f604e8404be5ff8))
+* add csvs ([f49d64b](https://github.com/ArtroxGabriel/SubMerge/commit/f49d64b93d82d22e13f1195e11880913b0629e28))
+* add micromerge proj ([1fd666d](https://github.com/ArtroxGabriel/SubMerge/commit/1fd666d8c980361aadce5066345bdc42cf10a4c1))
+* eh isso ([64b037a](https://github.com/ArtroxGabriel/SubMerge/commit/64b037a8895002d94eed0ad4d3f0f980f1ddd7b0))
+* **file:** create method to verify if file exists ([2dc888d](https://github.com/ArtroxGabriel/SubMerge/commit/2dc888d1546546290d38c9e332ffd7087afa8721))
+* **storage:** improve heap file manager API and logic ([d884c47](https://github.com/ArtroxGabriel/SubMerge/commit/d884c47984f96b81065effe2063f3a25f82dbd23))
+
 # [1.1.0](https://github.com/ArtroxGabriel/SubMerge/compare/v1.0.0...v1.1.0) (2025-06-07)
 
 
