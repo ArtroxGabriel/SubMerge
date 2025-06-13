@@ -1,0 +1,29 @@
+uva_id,nome,tipo,ano_colheita,pais_origem_id,pais_id,nome,sigla
+0,Sauvignon Blanc,branco,1974,0,0,Argentina,ARG
+40,Purple Cornichon,tinto,1919,0,0,Argentina,ARG
+68,Muscat Hamburg,branco,1964,0,0,Argentina,ARG
+2,Viognier,rosé,1965,0,0,Argentina,ARG
+41,Saint Macaire,branco,2015,0,0,Argentina,ARG
+71,Ruby Seedless,tinto,2014,0,0,Argentina,ARG
+8,Sauvignon Blanc,branco,2012,0,0,Argentina,ARG
+46,Purple Cornichon,tinto,2013,0,0,Argentina,ARG
+72,Ruby Seedless,rosé,2013,0,0,Argentina,ARG
+11,Flame Seedless,branco,1993,0,0,Argentina,ARG
+66,Flame Seedless,rosé,1954,1,1,Portugal,PRT
+33,Sultana,rosé,1986,1,1,Portugal,PRT
+3,Riesling,branco,1953,1,1,Portugal,PRT
+73,Sultana,rosé,1915,1,1,Portugal,PRT
+34,Chardonnay,rosé,1954,1,1,Portugal,PRT
+69,Flame Seedless,rosé,2004,2,2,Estados Unidos,EUA
+36,Saint Macaire,rosé,1924,2,2,Estados Unidos,EUA
+1,Muscat Hamburg,tinto,1939,2,2,Estados Unidos,EUA
+74,Flame Seedless,branco,1960,2,2,Estados Unidos,EUA
+37,Chardonnay,rosé,1927,2,2,Estados Unidos,EUA
+7,Sauvignon Blanc,branco,1920,2,2,Estados Unidos,EUA
+47,Riesling,branco,1913,2,2,Estados Unidos,EUA
+12,Muscat Hamburg,rosé,1913,2,2,Estados Unidos,EUA
+50,Purple Cornichon,rosé,1989,2,2,Estados Unidos,EUA
+23,Viognier,tinto,1950,2,2,Estados Unidos,EUA
+67,Cabernet Sauvignon,rosé,1958,3,3,Argentina,ARG
+5,Saint Macaire,branco,1913,3,3,Argentina,ARG
+38,Riesling,tinto,1913,3,3,Argentina,ARG
