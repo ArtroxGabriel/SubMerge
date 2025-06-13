@@ -40,7 +40,6 @@ public class Operator : IDisposable
             $"Right join column '{RightJoinColumn}' does not exist in right table '{Right.Name}'.");
 
 
-        // Swap the tables for the right be the smaller one
         if (Left.PageAmount < Right.PageAmount)
         {
             (Left, Right) = (Right, Left);
@@ -54,7 +53,6 @@ public class Operator : IDisposable
         using var sortedLeftTable = ExternalMergeSort(Left, LeftJoinColumn);
         using var sortedRightTable = ExternalMergeSort(Right, RightJoinColumn);
 
-        // Perform sort-merge join with 4-page memory constraint
         PerformSortMergeJoin(sortedLeftTable, sortedRightTable);
 
         Result.NameOfResultTable = _resultTable.Name;
@@ -73,10 +71,9 @@ public class Operator : IDisposable
         _resultTable.WriteToCsv(path);
     }
 
-    public SortedTable ExternalMergeSort(Table table, string columnName)
+    private SortedTable ExternalMergeSort(Table table, string columnName)
     {
-        if (table == null)
-            throw new ArgumentNullException(nameof(table));
+        ArgumentNullException.ThrowIfNull(table);
         if (string.IsNullOrWhiteSpace(columnName))
             throw new ArgumentException("Column name cannot be null or empty.", nameof(columnName));
 
@@ -101,24 +98,21 @@ public class Operator : IDisposable
     private List<SortedTable> CreateSortedRuns(Table table, int columnIndex)
     {
         var sortedRuns = new List<SortedTable>();
-        var availableMemoryPages = 3; // Assuming we can hold 3 pages in memory for sorting
+        const int availableMemoryPages = 4;
         var currentRun = new List<Record>();
         var runNumber = 0;
 
-        // Process each page from the table
         foreach (var page in table.Pages)
         {
             currentRun.AddRange(page.Records);
-            Result.NumberOfIOOperations++; // Reading a page (10 records)
+            Result.NumberOfIOOperations++;
 
-            // If we've collected enough records for memory limit, sort and write to disk
-            if (currentRun.Count >= availableMemoryPages * 10) // 10 records per page
+            if (currentRun.Count >= availableMemoryPages * 10)
             {
                 var sortedRecords = currentRun.OrderBy(r => GetComparableValue(r.Columns[columnIndex])).ToList();
                 var sortedTable = new SortedTable(table, $"run_{runNumber}");
                 sortedTable.WriteToFile(sortedRecords);
 
-                // Count I/O operations for writing (every 10 records = 1 I/O)
                 Result.NumberOfIOOperations += (int)Math.Ceiling(sortedRecords.Count / 10.0);
 
                 sortedRuns.Add(sortedTable);
@@ -128,14 +122,12 @@ public class Operator : IDisposable
             }
         }
 
-        // Handle remaining records
         if (currentRun.Count > 0)
         {
             var sortedRecords = currentRun.OrderBy(r => GetComparableValue(r.Columns[columnIndex])).ToList();
             var sortedTable = new SortedTable(table, $"run_{runNumber}");
             sortedTable.WriteToFile(sortedRecords);
 
-            // Count I/O operations for writing (every 10 records = 1 I/O)
             Result.NumberOfIOOperations += (int)Math.Ceiling(sortedRecords.Count / 10.0);
 
             sortedRuns.Add(sortedTable);
@@ -149,112 +141,183 @@ public class Operator : IDisposable
     {
         if (sortedRuns.Count == 1)
         {
-            // Rename the single run to have the correct sorted table name
             var singleRun = sortedRuns[0];
             var finalTable = new SortedTable(originalTable, columnName);
-            var allRecords = singleRun.GetPagesIterable().SelectMany(p => p.Records).ToList();
-            finalTable.WriteToFile(allRecords);
 
-            // Count I/O for reading the single run and writing the final table
-            Result.NumberOfIOOperations += singleRun.PageAmount; // Reading pages
-            Result.NumberOfIOOperations += (int)Math.Ceiling(allRecords.Count / 10.0); // Writing pages
+            var outputBuffer = new List<Record>();
+            foreach (var page in singleRun.GetPagesIterable())
+            {
+                Result.NumberOfIOOperations++;
+
+                foreach (var record in page.Records)
+                {
+                    outputBuffer.Add(record);
+
+                    if (outputBuffer.Count >= 10) FlushToSortedTable(finalTable, outputBuffer);
+                }
+            }
+
+            if (outputBuffer.Count > 0) FlushToSortedTable(finalTable, outputBuffer);
 
             return finalTable;
         }
 
+        var maxInputRuns = Math.Min(3, sortedRuns.Count); // Reserve 1 page for output
         var finalSortedTable = new SortedTable(originalTable, columnName);
-        var mergedRecords = new List<Record>();
         var columnIndex = originalTable.Columns.IndexOf(columnName);
 
-        // Use a priority queue approach for merging
-        var iterators = sortedRuns.Select(run =>
-            run.GetPagesIterable().SelectMany(p => p.Records).GetEnumerator()).ToList();
-
-        var priorityQueue = new SortedDictionary<string, Queue<(Record record, int iteratorIndex)>>();
-
-        // Count I/O for reading all sorted runs during merge
-        foreach (var run in
-                 sortedRuns) Result.NumberOfIOOperations += run.PageAmount; // Reading all pages from each run
-
-        // Initialize the priority queue
-        for (var i = 0; i < iterators.Count; i++)
-            if (iterators[i].MoveNext())
-            {
-                var record = iterators[i].Current;
-                var key = GetComparableValue(record.Columns[columnIndex]);
-                if (!priorityQueue.ContainsKey(key))
-                    priorityQueue[key] = new Queue<(Record, int)>();
-                priorityQueue[key].Enqueue((record, i));
-            }
-
-        // Merge process
-        while (priorityQueue.Count > 0)
-        {
-            var minKey = priorityQueue.Keys.First();
-            var (record, iteratorIndex) = priorityQueue[minKey].Dequeue();
-            mergedRecords.Add(record);
-
-            if (priorityQueue[minKey].Count == 0)
-                priorityQueue.Remove(minKey);
-
-            // Try to advance the corresponding iterator
-            if (iterators[iteratorIndex].MoveNext())
-            {
-                var nextRecord = iterators[iteratorIndex].Current;
-                var nextKey = GetComparableValue(nextRecord.Columns[columnIndex]);
-                if (!priorityQueue.ContainsKey(nextKey))
-                    priorityQueue[nextKey] = new Queue<(Record, int)>();
-                priorityQueue[nextKey].Enqueue((nextRecord, iteratorIndex));
-            }
-        }
-
-        // Clean up iterators
-        foreach (var iterator in iterators) iterator.Dispose();
-
-        finalSortedTable.WriteToFile(mergedRecords);
-
-        // Count I/O for writing final sorted table (every 10 records = 1 I/O)
-        Result.NumberOfIOOperations += (int)Math.Ceiling(mergedRecords.Count / 10.0);
-
-        return finalSortedTable;
+        return MergeWithBufferConstraint(sortedRuns, finalSortedTable, columnIndex, maxInputRuns);
     }
 
-    private IEnumerable<Record>? GetRecordsFromSortedTable(SortedTable sortedTable)
+    private SortedTable MergeWithBufferConstraint(List<SortedTable> sortedRuns, SortedTable finalTable, int columnIndex,
+        int maxInputRuns)
     {
-        Debug.Assert(sortedTable != null, "Sorted table must not be null.");
+        if (sortedRuns.Count <= maxInputRuns) return MergeRuns(sortedRuns, finalTable, columnIndex);
 
-        var pages = sortedTable.GetPagesIterable();
+        var tempRuns = new List<SortedTable>();
+        var passNumber = 0;
 
-        foreach (var page in pages)
+        for (var i = 0; i < sortedRuns.Count; i += maxInputRuns)
         {
-            Result.NumberOfIOOperations++;
-            foreach (var record in page.Records) yield return record;
+            var runsToMerge = sortedRuns.Skip(i).Take(maxInputRuns).ToList();
+            var tempTable = new SortedTable($"temp_pass_{passNumber}", new List<string>(finalTable.Columns),
+                "temp_column");
+            var mergedTable = MergeRuns(runsToMerge, tempTable, columnIndex);
+            tempRuns.Add(mergedTable);
+            passNumber++;
+        }
+
+        var result = MergeWithBufferConstraint(tempRuns, finalTable, columnIndex, maxInputRuns);
+
+        foreach (var tempRun in tempRuns) tempRun.DeleteFile();
+
+        return result;
+    }
+
+    private SortedTable MergeRuns(List<SortedTable> runs, SortedTable outputTable, int columnIndex)
+    {
+        var runIterators = runs.Select(run => new RunIterator(run)).ToArray();
+        var outputBuffer = new List<Record>();
+
+        try
+        {
+            InitializeRunIterators(runIterators);
+            PerformMergeProcess(runIterators, outputBuffer, outputTable, columnIndex);
+
+            if (outputBuffer.Count > 0) FlushToSortedTable(outputTable, outputBuffer);
+        }
+        finally
+        {
+            CleanupRunIterators(runIterators);
+        }
+
+        return outputTable;
+    }
+
+    private void InitializeRunIterators(RunIterator[] runIterators)
+    {
+        foreach (var run in runIterators)
+            if (!run.LoadNextPage())
+                run.IsFinished = true;
+            else
+                Result.NumberOfIOOperations++;
+    }
+
+    private void PerformMergeProcess(RunIterator[] runIterators, List<Record> outputBuffer, SortedTable outputTable,
+        int columnIndex)
+    {
+        while (runIterators.Any(it => !it.IsFinished))
+        {
+            var selectedIterator = FindIteratorWithSmallestRecord(runIterators, columnIndex);
+
+            if (selectedIterator != null) ProcessSelectedRecord(selectedIterator, outputBuffer, outputTable);
         }
     }
 
-    private string GetComparableValue(string value)
+    private static RunIterator? FindIteratorWithSmallestRecord(RunIterator[] runIterators, int columnIndex)
     {
-        return value ?? string.Empty;
+        RunIterator? selectedIterator = null;
+        var minValue = string.Empty;
+
+        foreach (var runIterator in runIterators)
+            if (!runIterator.IsFinished && runIterator.CurrentRecord != null)
+            {
+                var currentValue = GetComparableValue(runIterator.CurrentRecord.Columns[columnIndex]);
+                if (selectedIterator == null || string.CompareOrdinal(currentValue, minValue) < 0)
+                {
+                    selectedIterator = runIterator;
+                    minValue = currentValue;
+                }
+            }
+
+        return selectedIterator;
+    }
+
+    private void ProcessSelectedRecord(RunIterator selectedIterator, List<Record> outputBuffer, SortedTable outputTable)
+    {
+        outputBuffer.Add(selectedIterator.CurrentRecord!);
+
+        if (!selectedIterator.MoveNext())
+        {
+            if (!selectedIterator.LoadNextPage())
+                selectedIterator.IsFinished = true;
+            else
+                Result.NumberOfIOOperations++;
+        }
+
+        if (outputBuffer.Count >= 10) FlushToSortedTable(outputTable, outputBuffer);
+    }
+
+    private static void CleanupRunIterators(RunIterator[] runIterators)
+    {
+        foreach (var iterator in runIterators) iterator.Dispose();
+    }
+
+    private void FlushToSortedTable(SortedTable table, List<Record> buffer)
+    {
+        if (buffer.Count > 0)
+        {
+            var allRecords = new List<Record>();
+            try
+            {
+                foreach (var page in table.GetPagesIterable())
+                {
+                    allRecords.AddRange(page.Records);
+                    Result.NumberOfIOOperations++;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            allRecords.AddRange(buffer);
+
+            table.WriteToFile(allRecords);
+            Result.NumberOfIOOperations += (int)Math.Ceiling(allRecords.Count / 10.0);
+
+            buffer.Clear();
+        }
+    }
+
+    private static string GetComparableValue(string value)
+    {
+        return value;
     }
 
     public void SaveResults()
     {
+        // Method intentionally left empty - results are managed through WriteToCsv method
     }
 
     private void PerformSortMergeJoin(SortedTable leftTable, SortedTable rightTable)
     {
-        // Memory constraint: 4 pages total (10 records each)
-        // 1 page for left table buffer
-        // 1 page for right table buffer
-        // 1 page for right table mark buffer (for duplicate handling)
-        // 1 page for output buffer
-
         var leftPageIterator = leftTable.GetPagesIterable().GetEnumerator();
         var rightPageIterator = rightTable.GetPagesIterable().GetEnumerator();
 
         var leftBuffer = new List<Record>();
         var rightBuffer = new List<Record>();
-        var rightMarkBuffer = new List<Record>(); // Mark buffer for handling duplicates
+        var rightMarkBuffer = new List<Record>();
         var outputBuffer = new List<Record>();
 
         var leftIndex = 0;
@@ -279,51 +342,43 @@ public class Operator : IDisposable
 
             if (comparison < 0)
             {
-                // Left value is smaller, advance left pointer
                 leftIndex++;
                 if (leftIndex >= leftBuffer.Count)
                     hasLeftData = LoadNextPageToBuffer(leftPageIterator, leftBuffer, ref leftIndex);
             }
             else if (comparison > 0)
             {
-                // Right value is smaller, advance right pointer
                 rightIndex++;
                 if (rightIndex >= rightBuffer.Count)
                     hasRightData = LoadNextPageToBuffer(rightPageIterator, rightBuffer, ref rightIndex);
             }
             else
             {
-                // Values are equal - handle duplicates
                 var currentJoinValue = leftValue;
 
-                // Mark the position in right buffer to handle duplicates
                 rightMarkBuffer.Clear();
                 rightMarkBuffer.AddRange(rightBuffer.Skip(rightIndex).Take(rightBuffer.Count - rightIndex));
                 rightMarkIndex = 0;
 
-                // Process all left records with the same join value
                 while (hasLeftData && leftIndex < leftBuffer.Count)
                 {
                     var currentLeftRecord = leftBuffer[leftIndex];
                     var currentLeftValue = GetComparableValue(currentLeftRecord.Columns[leftColumnIndex]);
 
                     if (string.CompareOrdinal(currentLeftValue, currentJoinValue) != 0)
-                        break; // No more matching left records
+                        break;
 
-                    // Reset right position to the mark for each left record
                     var rightTempIndex = rightMarkIndex;
                     var rightTempBuffer = rightMarkBuffer;
 
-                    // Join current left record with all matching right records
                     while (rightTempIndex < rightTempBuffer.Count)
                     {
                         var currentRightRecord = rightTempBuffer[rightTempIndex];
                         var currentRightValue = GetComparableValue(currentRightRecord.Columns[rightColumnIndex]);
 
                         if (string.CompareOrdinal(currentRightValue, currentJoinValue) != 0)
-                            break; // No more matching right records
+                            break;
 
-                        // Create joined record
                         var joinedRecord = new Record();
                         joinedRecord.Columns.AddRange(currentLeftRecord.Columns);
                         joinedRecord.Columns.AddRange(currentRightRecord.Columns);
@@ -331,7 +386,6 @@ public class Operator : IDisposable
                         outputBuffer.Add(joinedRecord);
                         Result.NumberOfCreatedRecords++;
 
-                        // Check if output buffer is full (10 records = 1 page)
                         if (outputBuffer.Count >= 10) FlushOutputBuffer(outputBuffer);
 
                         rightTempIndex++;
@@ -340,7 +394,6 @@ public class Operator : IDisposable
                     leftIndex++;
                 }
 
-                // Advance right pointer past all processed records
                 while (rightIndex < rightBuffer.Count)
                 {
                     var currentRightValue = GetComparableValue(rightBuffer[rightIndex].Columns[rightColumnIndex]);
@@ -349,20 +402,16 @@ public class Operator : IDisposable
                     rightIndex++;
                 }
 
-                // Check if we need to load next left page
                 if (leftIndex >= leftBuffer.Count)
                     hasLeftData = LoadNextPageToBuffer(leftPageIterator, leftBuffer, ref leftIndex);
 
-                // Check if we need to load next right page
                 if (rightIndex >= rightBuffer.Count)
                     hasRightData = LoadNextPageToBuffer(rightPageIterator, rightBuffer, ref rightIndex);
             }
         }
 
-        // Write remaining records in output buffer
         FlushOutputBuffer(outputBuffer);
 
-        // Clean up iterators
         leftPageIterator.Dispose();
         rightPageIterator.Dispose();
     }
@@ -371,23 +420,19 @@ public class Operator : IDisposable
     {
         if (outputBuffer.Count > 0 && _resultTable != null)
         {
-            // Write the output buffer to the result table
             var existingRecords = new List<Record>();
 
-            // Read existing records if any
             try
             {
                 existingRecords.AddRange(_resultTable.GetPagesIterable().SelectMany(p => p.Records));
             }
             catch
             {
-                // No existing records, which is fine
+                // ignored
             }
 
-            // Add new records
             existingRecords.AddRange(outputBuffer);
 
-            // Write all records back to the result table
             _resultTable.WriteToFile(existingRecords);
 
             Result.NumberOfIOOperations++; // Writing a page
@@ -399,6 +444,7 @@ public class Operator : IDisposable
 
     private bool LoadNextPageToBuffer(IEnumerator<Page> pageIterator, List<Record> buffer, ref int bufferIndex)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(bufferIndex);
         buffer.Clear();
         bufferIndex = 0;
 
@@ -410,6 +456,60 @@ public class Operator : IDisposable
         }
 
         return false;
+    }
+
+    private sealed class RunIterator : IDisposable
+    {
+        private readonly IEnumerator<Page> _pageIterator;
+        private List<Record> _currentPageRecords;
+        private bool _disposed;
+        private int _recordIndex;
+
+        public RunIterator(SortedTable sortedTable)
+        {
+            _pageIterator = sortedTable.GetPagesIterable().GetEnumerator();
+            _currentPageRecords = [];
+            _recordIndex = 0;
+            IsFinished = false;
+        }
+
+        public Record? CurrentRecord =>
+            _recordIndex < _currentPageRecords.Count ? _currentPageRecords[_recordIndex] : null;
+
+        public bool IsFinished { get; set; }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        public bool LoadNextPage()
+        {
+            if (_pageIterator.MoveNext())
+            {
+                _currentPageRecords = new List<Record>(_pageIterator.Current.Records);
+                _recordIndex = 0;
+                return _currentPageRecords.Count > 0;
+            }
+
+            return false;
+        }
+
+        public bool MoveNext()
+        {
+            _recordIndex++;
+            return _recordIndex < _currentPageRecords.Count;
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing) _pageIterator?.Dispose();
+                _disposed = true;
+            }
+        }
     }
 }
 

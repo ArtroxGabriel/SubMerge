@@ -20,10 +20,11 @@ var grapeTable = new GrapeTable("./Data/uva.csv");
 // using var op = new Operator(wineTable, grapeTable, "uva_id", "uva_id");
 // using var op = new Operator(grapeTable, wineTable, "uva_id", "uva_id");
 // using var op = new Operator(grapeTable, countryTable, "pais_origem_id", "pais_id");
-using var op = new Operator(countryTable, grapeTable, "sigla", "pais_origem_id");
+using var op = new Operator(countryTable, grapeTable, "pais_id", "pais_origem_id");
 
 
 var res = op.Execute();
 PrintResult(res);
 
-op.WriteToCsv("./output");
+var outputFileName = Path.Combine(Directory.GetCurrentDirectory(), "./output");
+op.WriteToCsv(outputFileName);
