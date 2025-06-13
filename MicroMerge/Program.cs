@@ -31,7 +31,7 @@ string GetBasePath()
     }
 
     var parentDir = currentDir;
-    for (int i = 0; i < 3; i++)
+    for (var i = 0; i < 3; i++)
     {
         parentDir = Directory.GetParent(parentDir)?.FullName;
         if (parentDir == null)
@@ -49,7 +49,7 @@ string GetBasePath()
 
     throw new DirectoryNotFoundException(
         $"Não foi possível encontrar o diretório do projeto '{projectName}' com a pasta 'Data'. "
-            + $"Certifique-se de executar o programa do diretório correto."
+        + $"Certifique-se de executar o programa do diretório correto."
     );
 }
 

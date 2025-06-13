@@ -140,12 +140,12 @@ public class SortedTable : IDisposable
 
         // Read all pages and write their records to CSV
         foreach (var page in GetPagesIterable())
-            foreach (var record in page.Records)
-            {
-                // Write each column value for the record
-                foreach (var columnValue in record.Columns) csv.WriteField(columnValue);
-                csv.NextRecord();
-            }
+        foreach (var record in page.Records)
+        {
+            // Write each column value for the record
+            foreach (var columnValue in record.Columns) csv.WriteField(columnValue);
+            csv.NextRecord();
+        }
 
         // Write the CSV content to file
 

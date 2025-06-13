@@ -7,9 +7,11 @@ Este documento fornece informações técnicas detalhadas sobre a implementaçã
 ### Classes Principais
 
 #### Classe `Operator`
+
 Orquestrador principal para operações de junção sort-merge com gerenciamento rigoroso de memória.
 
 **Características Principais:**
+
 - **Restrição de Memória**: NUNCA excede 4 páginas (40 registros) na memória
 - **Ordenação Externa**: Processa datasets maiores que a memória disponível
 - **Merge Multi-Pass**: Automaticamente processa grandes quantidades de runs ordenados
@@ -27,9 +29,11 @@ MEMÓRIA TOTAL: APENAS 4 PÁGINAS (40 registros) - NUNCA MAIS!
 ```
 
 #### Classe Helper `RunIterator`
+
 Gerencia iteração página-por-página através de runs ordenados sem carregar tabelas inteiras na memória.
 
 **Características:**
+
 - Buffer de uma página por iterador
 - Carregamento lazy de páginas
 - Descarte adequado de recursos
@@ -38,6 +42,7 @@ Gerencia iteração página-por-página através de runs ordenados sem carregar 
 ### Implementação da Ordenação Externa
 
 #### Fase 1: Criação de Runs
+
 ```csharp
 const int availableMemoryPages = 4; // MÁXIMO ABSOLUTO!
 var currentRun = new List<Record>();
@@ -61,6 +66,7 @@ foreach (var page in table.Pages)
 ```
 
 #### Fase 2: Merge Multi-Way
+
 ```csharp
 // Abordagem tournament tree para merge - SEMPRE respeitando 4 páginas
 while (runIterators.Any(it => !it.IsFinished))
@@ -92,10 +98,11 @@ while (runIterators.Any(it => !it.IsFinished))
 ## 🔄 Algoritmo de Junção Sort-Merge
 
 ### Gerenciamento de Buffer
+
 A operação de junção usa um sistema de buffer de 4 páginas:
 
 1. **Buffer Esquerdo**: 1 página para registros da tabela esquerda
-2. **Buffer Direito**: 1 página para registros da tabela direita  
+2. **Buffer Direito**: 1 página para registros da tabela direita
 3. **Buffer de Marca**: 1 página para tratamento de duplicatas na tabela direita
 4. **Buffer de Saída**: 1 página para acumular registros unidos
 
@@ -116,6 +123,7 @@ A operação de junção usa um sistema de buffer de 4 páginas:
 ```
 
 ### Lógica de Junção
+
 ```csharp
 while (hasLeftData && hasRightData)
 {
@@ -146,15 +154,18 @@ while (hasLeftData && hasRightData)
 ## 📊 Características de Performance
 
 ### Complexidade de Tempo
+
 - **Ordenação**: O(n log n) para cada tabela
 - **Merging**: O(n + m) onde n, m são tamanhos das tabelas
 - **Geral**: O(n log n + m log m + n + m)
 
 ### Complexidade de Espaço
+
 - **Memória**: O(1) - constante 4 páginas independente do tamanho da entrada
 - **Disco**: O(n + m) para runs ordenados temporários
 
 ### Complexidade de I/O
+
 - **Fase de Ordenação**: O(n/B * log(n/B)) onde B é tamanho da página
 - **Fase de Merge**: O((n + m)/B) para acesso sequencial
 - **Fase de Junção**: O((n + m)/B) para traversal de tabela ordenada
@@ -162,6 +173,7 @@ while (hasLeftData && hasRightData)
 ## 🛠️ Opções de Configuração
 
 ### Configuração de Memória
+
 ```csharp
 const int availableMemoryPages = 4;  // PÁGINAS TOTAIS NA MEMÓRIA - IMUTÁVEL!
 const int recordsPerPage = 10;       // Registros por página
@@ -169,6 +181,7 @@ const int maxInputRuns = 3;          // Max runs em merge multi-way
 ```
 
 ### Otimização de Junção
+
 ```csharp
 // Otimiza automaticamente fazendo a tabela maior ser o operando esquerdo
 if (Left.PageAmount < Right.PageAmount)
@@ -181,6 +194,7 @@ if (Left.PageAmount < Right.PageAmount)
 ## 🚀 Exemplos de Uso
 
 ### Operação de Junção Básica
+
 ```csharp
 var wineTable = new WineTable("./Data/vinho.csv");
 var countryTable = new CountryTable("./Data/pais.csv");
@@ -198,6 +212,7 @@ op.WriteToCsv("./output");
 ```
 
 ### Monitoramento de Performance
+
 ```csharp
 var stopwatch = Stopwatch.StartNew();
 var result = op.Execute();
@@ -213,21 +228,22 @@ Console.WriteLine($"Conformidade de memória: ✓ SEMPRE 4 páginas máximo");
 
 ### Problemas Comuns
 
-1. **Falta de Memória**: 
-   - Verificar conformidade com restrição de 4 páginas
-   - Checar vazamentos de memória no descarte do RunIterator
+1. **Falta de Memória**:
+    - Verificar conformidade com restrição de 4 páginas
+    - Checar vazamentos de memória no descarte do RunIterator
 
 2. **Resultados de Junção Incorretos**:
-   - Verificar se nomes das colunas de junção correspondem aos esquemas das tabelas
-   - Checar compatibilidade de tipos de dados
-   - Assegurar ordem de ordenação adequada
+    - Verificar se nomes das colunas de junção correspondem aos esquemas das tabelas
+    - Checar compatibilidade de tipos de dados
+    - Assegurar ordem de ordenação adequada
 
 3. **Performance Ruim**:
-   - Monitorar contagem de operações de I/O
-   - Checar padrões ineficientes de carregamento de páginas
-   - Verificar ordenação ótima de tabelas
+    - Monitorar contagem de operações de I/O
+    - Checar padrões ineficientes de carregamento de páginas
+    - Verificar ordenação ótima de tabelas
 
 ### Configuração de Debug
+
 ```csharp
 // Habilitar assertions de debug
 Debug.Assert(Left.Columns.Contains(LeftJoinColumn), 
@@ -239,18 +255,22 @@ Debug.Assert(Right.Columns.Contains(RightJoinColumn),
 ## 📈 Métricas de Performance
 
 ### Métricas Rastreadas
+
 - **NumberOfCreatedPages**: Total de páginas escritas no disco
 - **NumberOfIOOperations**: Contagem de todas as operações de leitura/escrita no disco
 - **NumberOfCreatedRecords**: Total de registros no resultado final
 - **NameOfResultTable**: Identificador da tabela gerada
 
 ### Benchmarks de Performance
+
 Baseado em dados de teste:
+
 - **Tabela Wine**: ~500 registros → ~50 páginas
-- **Tabela Grape**: ~75 registros → ~8 páginas  
+- **Tabela Grape**: ~75 registros → ~8 páginas
 - **Tabela Country**: ~5 registros → ~1 página
 
 Performance típica de junção:
+
 - **Operações de I/O**: 50-100 operações para datasets médios
 - **Uso de Memória**: Constante 4 páginas independente do tamanho da entrada
 - **Tempo de Execução**: Sub-segundo para datasets de teste fornecidos
@@ -258,6 +278,7 @@ Performance típica de junção:
 ## 🧪 Estratégia de Testes
 
 ### Abordagem de Testes Unitários
+
 ```csharp
 [TestMethod]
 public void TestMemoryConstraint()
@@ -279,6 +300,7 @@ public void TestJoinCorrectness()
 ```
 
 ### Testes de Integração
+
 1. **Testes End-to-End**: Operações de junção completas com várias combinações de tabelas
 2. **Testes de Performance**: Contagem de operações de I/O e monitoramento de memória
 3. **Testes de Integridade de Dados**: Verificar correção da junção com datasets conhecidos
@@ -286,6 +308,7 @@ public void TestJoinCorrectness()
 ## 🔧 Estendendo a Implementação
 
 ### Adicionando Novos Tipos de Tabela
+
 ```csharp
 public class CustomTable : Table
 {
@@ -299,6 +322,7 @@ public class CustomTable : Table
 ```
 
 ### Ordens de Ordenação Customizadas
+
 ```csharp
 private static string GetComparableValue(string value)
 {
@@ -308,9 +332,11 @@ private static string GetComparableValue(string value)
 ```
 
 ### Tipos de Junção Alternativos
+
 A implementação atual pode ser estendida para suportar:
+
 - **Left Outer Join**: Incluir registros esquerdos não correspondentes
-- **Right Outer Join**: Incluir registros direitos não correspondentes  
+- **Right Outer Join**: Incluir registros direitos não correspondentes
 - **Full Outer Join**: Incluir todos os registros não correspondentes
 
 ### 🚨 **LEMBRETES CRÍTICOS PARA EXTENSÕES**
