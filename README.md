@@ -371,7 +371,7 @@ MicroMerge/
 
     ```bash
     # Edite Program.cs para descomentar a junção desejada
-    dotnet run
+    dotnet run --project MicroMerge
     ```
 
 2. **Verifique os arquivos de saída**:
@@ -391,24 +391,6 @@ MicroMerge/
 - **Correção**: Compare resultados da junção com resultados esperados
 - **Conformidade de Memória**: Certifique-se de nunca exceder limite de 4 páginas
 - **Eficiência de I/O**: Monitore contagem de operações de disco
-
-## 🤝 Contribuindo
-
-1. **Faça fork do repositório**
-2. **Crie uma branch de feature**: `git checkout -b feature/funcionalidade-incrivel`
-3. **Faça as mudanças**: Siga o estilo de código existente
-4. **Teste completamente**: Certifique-se de que as restrições de memória são mantidas
-5. **Commit das mudanças**: `git commit -m 'Adiciona funcionalidade incrível'`
-6. **Push para a branch**: `git push origin feature/funcionalidade-incrivel`
-7. **Abra um Pull Request**
-
-### Diretrizes de Desenvolvimento
-
-- Mantenha a restrição de memória de 4 páginas
-- Adicione tratamento de erro abrangente
-- Inclua métricas de performance para novas funcionalidades
-- Siga convenções de código C#
-- Adicione testes unitários para novos algoritmos
 
 ## 📄 Licença
 

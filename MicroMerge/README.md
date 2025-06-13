@@ -339,20 +339,6 @@ A implementação atual pode ser estendida para suportar:
 - **Right Outer Join**: Incluir registros direitos não correspondentes
 - **Full Outer Join**: Incluir todos os registros não correspondentes
 
-### 🚨 **LEMBRETES CRÍTICOS PARA EXTENSÕES**
-
-```
-⚠️  AO ESTENDER O CÓDIGO:
-
-1. SEMPRE manter a restrição de 4 páginas na memória
-2. NUNCA usar LINQ que carregue dados completos (ToList(), etc.)
-3. SEMPRE processar dados página por página
-4. IMPLEMENTAR descarte adequado de recursos
-5. TESTAR conformidade de memória em todos os cenários
-
-NUNCA COMPROMETA A RESTRIÇÃO DE MEMÓRIA!
-```
-
 ---
 
 **Líder Técnico**: Equipe de Implementação de Sistemas de Banco de Dados  
