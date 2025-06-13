@@ -162,7 +162,7 @@ public class Operator : IDisposable
             return finalTable;
         }
 
-        var maxInputRuns = Math.Min(3, sortedRuns.Count); 
+        var maxInputRuns = Math.Min(3, sortedRuns.Count);
         var finalSortedTable = new SortedTable(originalTable, columnName);
         var columnIndex = originalTable.Columns.IndexOf(columnName);
 
@@ -435,7 +435,7 @@ public class Operator : IDisposable
 
             _resultTable.WriteToFile(existingRecords);
 
-            Result.NumberOfIOOperations++; 
+            Result.NumberOfIOOperations++;
             Result.NumberOfCreatedPages = (int)Math.Ceiling(existingRecords.Count / 10.0);
 
             outputBuffer.Clear();
@@ -451,7 +451,7 @@ public class Operator : IDisposable
         if (pageIterator.MoveNext())
         {
             buffer.AddRange(pageIterator.Current.Records);
-            Result.NumberOfIOOperations++; 
+            Result.NumberOfIOOperations++;
             return buffer.Count > 0;
         }
 

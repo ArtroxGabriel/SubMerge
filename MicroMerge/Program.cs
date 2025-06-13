@@ -1,4 +1,4 @@
-﻿using MicroMerge.Operator;
+using MicroMerge.Operator;
 using MicroMerge.Tables;
 
 void PrintResult(OperatorResult result)
@@ -15,13 +15,13 @@ string GetBasePath()
 {
     var currentDir = Directory.GetCurrentDirectory();
     var projectName = "MicroMerge";
-    
+
     if (Directory.Exists(Path.Combine(currentDir, "Data")))
     {
         Console.WriteLine($"Executando do diretório do projeto: {currentDir}");
         return currentDir;
     }
-    
+
     var projectPath = Path.Combine(currentDir, projectName);
     if (Directory.Exists(projectPath) && Directory.Exists(Path.Combine(projectPath, "Data")))
     {
@@ -29,24 +29,28 @@ string GetBasePath()
         Console.WriteLine($"Usando diretório do projeto: {projectPath}");
         return projectPath;
     }
-    
+
     var parentDir = currentDir;
-    for (int i = 0; i < 3; i++) 
+    for (int i = 0; i < 3; i++)
     {
         parentDir = Directory.GetParent(parentDir)?.FullName;
-        if (parentDir == null) break;
-        
+        if (parentDir == null)
+            break;
+
         var candidatePath = Path.Combine(parentDir, projectName);
-        if (Directory.Exists(candidatePath) && Directory.Exists(Path.Combine(candidatePath, "Data")))
+        if (
+            Directory.Exists(candidatePath) && Directory.Exists(Path.Combine(candidatePath, "Data"))
+        )
         {
             Console.WriteLine($"Encontrado diretório do projeto em: {candidatePath}");
             return candidatePath;
         }
     }
-    
+
     throw new DirectoryNotFoundException(
-        $"Não foi possível encontrar o diretório do projeto '{projectName}' com a pasta 'Data'. " +
-        $"Certifique-se de executar o programa do diretório correto.");
+        $"Não foi possível encontrar o diretório do projeto '{projectName}' com a pasta 'Data'. "
+            + $"Certifique-se de executar o programa do diretório correto."
+    );
 }
 
 var basePath = GetBasePath();
@@ -93,4 +97,6 @@ PrintResult(res);
 Console.WriteLine($"\nEscrevendo resultado em: {outputPath}");
 op.WriteToCsv(outputPath);
 
-Console.WriteLine($"Arquivo de saída criado: {Path.Combine(outputPath, res.NameOfResultTable + ".csv")}");
+Console.WriteLine(
+    $"Arquivo de saída criado: {Path.Combine(outputPath, res.NameOfResultTable + ".csv")}"
+);
